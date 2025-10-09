@@ -114,33 +114,40 @@ void loop() {
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.setTextSize(2);
 
-  if (digitalRead(PIN_BUTTON_1) == LOW) {
-    pageIndex--;
-  }
-  if (digitalRead(PIN_BUTTON_2) == LOW) {
-    pageIndex++;
-  }
   
-  if(pageIndex < 0) {
-    pageIndex = 1;
-  } else if (pageIndex > 1) {
-    pageIndex = 0;
-  }
-
   switch (pageIndex) {
     case 0:
-      tft.drawString("Group 6, v 1.0", 10, 10);
-      tft.drawBitmap(15, 40, logo_bitmap, 64, 64, TFT_ORANGE, TFT_BLACK);
-      break;
+    tft.drawString("Group 6, v 1.0", 10, 10);
+    tft.drawBitmap(15, 40, logo_bitmap, 64, 64, TFT_ORANGE, TFT_BLACK);
+    break;
     case 1:
-      tft.drawString("Theodor Qvarlander", 10, 10);
-      tft.drawString("Saga Lindqvist", 10, 30);
-      tft.drawString("Josefine Johnsson", 10, 50);
-      tft.drawString("Olof Carlander", 10, 70);
-      break;
+    tft.drawString("Theodor Qvarlander", 10, 10);
+    tft.drawString("Saga Lindqvist", 10, 30);
+    tft.drawString("Josefine Johnsson", 10, 50);
+    tft.drawString("Olof Carlander", 10, 70);
+    break;
   }
-
-  delay(300);
+  
+  bool btnPressed = false;
+  while(!btnPressed) {
+    delay(100);
+    if (digitalRead(PIN_BUTTON_1) == LOW || digitalRead(PIN_BUTTON_2) == LOW) {
+      btnPressed = true;
+      
+      if (digitalRead(PIN_BUTTON_1) == LOW) {
+        pageIndex--;
+      }
+      if (digitalRead(PIN_BUTTON_2) == LOW) {
+        pageIndex++;
+      }
+      
+      if(pageIndex < 0) {
+        pageIndex = 1;
+      } else if (pageIndex > 1) {
+        pageIndex = 0;
+      }
+    }
+  }
 }
 
 
