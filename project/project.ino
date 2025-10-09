@@ -649,9 +649,9 @@ void pomodoroPage()
   tft.setTextSize(2);
   tft.drawString("Pomodoro Mode", 10, 10);
 
-  int workDuration = 25 * 1000;      // 25 minutes
-  int breakDuration = 5 * 1000;      // 5 minutes
-  int longbreakDuration = 15 * 1000; // 15 minutes
+  int workDuration = 25 * 60 * 1000;      // 25 minutes
+  int breakDuration = 5 * 60 * 1000;      // 5 minutes
+  int longbreakDuration = 15 * 60 * 1000; // 15 minutes
   int cyclesBeforeLongBreak = 4;
   int cycleCount = 0;
 
