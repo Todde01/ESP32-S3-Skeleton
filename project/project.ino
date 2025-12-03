@@ -11,8 +11,21 @@
 #include <TFT_eSPI.h>
 #include <time.h>
 #include <String.h>
+#include <iostream>
+#include <esp_http_client.h>
+#include <WiFiClientSecure.h>
 
+
+const String rateAPIBaseURL = "http://api.coinbase.com/v2/exchange-rates?currency=";
+const String nameAPIBaseURL = "http://api.coinbase.com/v2/currencies/crypto?currency=";
+String cryptoIDs[] = {"BTC", "ETH", "USDT"};
+const float USD_TO_SEK = 9.6;
 int pageIndex = 0;
+bool btnPressed = false;
+const char* HOST = "api.coinbase.com";
+const int   HTTPS_PORT = 443;
+const char* PRICES_ENDPOINT = "/v2/exchange-rates?currency=";
+const char* CURRENCIES_ENDPOINT = "/v2/currencies/crypto?currency=";
 
 const uint8_t logo_bitmap[512] = {
     0x00,
@@ -530,8 +543,8 @@ const uint8_t logo_bitmap[512] = {
 };
 
 // Remember to remove these before commiting in GitHub
-String ssid = "ssid";
-String password = "password";
+String ssid = "";
+String password = "";
 
 // "tft" is the graphics libary, which has functions to draw on the screen
 TFT_eSPI tft = TFT_eSPI();
@@ -540,7 +553,7 @@ TFT_eSPI tft = TFT_eSPI();
 #define DISPLAY_WIDTH 320
 #define DISPLAY_HEIGHT 170
 
-WiFiClient wifi_client;
+WiFiClientSecure wifi_client;
 
 /**
  * Setup function
@@ -563,17 +576,31 @@ void setup()
   pinMode(PIN_BUTTON_1, INPUT_PULLUP);
   pinMode(PIN_BUTTON_2, INPUT_PULLUP);
 
-  // // Connect to WIFI
-  // WiFi.begin(ssid, password);
+  // Connect to WIFI
+  WiFi.begin(ssid, password);
 
-  // // Will be stuck here until a proper wifi is configured
-  // while (WiFi.status() != WL_CONNECTED) {
-  //   delay(1000);
-  //   tft.fillScreen(TFT_BLACK);
-  //   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  //   tft.drawString("Connecting to WiFi...", 10, 10);
-  //   Serial.println("Attempting to connect to WiFi...");
-  // }
+  // Will be stuck here until a proper wifi is configured
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.drawString("Connecting to WiFi...", 10, 10);
+    tft.drawString("wifi status: " + String(WiFi.status()), 10, 30);
+    Serial.println("Attempting to connect to WiFi...");
+  }
+
+  wifi_client.setInsecure();
+
+  const long gmtOffset_sec = 3600;      //UTC+1
+  const char *ntpServer = "pool.ntp.org";
+  configTime(gmtOffset_sec, 0, ntpServer); //no daylight offset since its not summer time
+
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo, 5000)) {  //5s timeout
+    Serial.println("Failed to obtain time");
+  } else {
+    Serial.printf("Time set: %02d:%02d:%02d\n", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+  }
 
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_GREEN, TFT_BLACK);
@@ -589,6 +616,7 @@ void setup()
  */
 void loop()
 {
+  Serial.printf("Mainpage\n");
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.setTextSize(2);
@@ -605,9 +633,13 @@ void loop()
     tft.drawString("Josefine Johnsson", 10, 50);
     tft.drawString("Olof Carlander", 10, 70);
     break;
+  case 2:
+    Serial.printf("Should call crypto overview page\n");
+    cryptoOverviewPage();
+    break;
   }
 
-  bool btnPressed = false;
+  btnPressed = false;
   while (!btnPressed)
   {
     delay(100);
@@ -626,9 +658,9 @@ void loop()
 
       if (pageIndex < 0)
       {
-        pageIndex = 1;
+        pageIndex = 2;
       }
-      else if (pageIndex > 1)
+      else if (pageIndex > 2)
       {
         pageIndex = 0;
       }
@@ -746,6 +778,48 @@ void pomodoroPage()
     }
   }
 }
+
+//Overview with symbol and price in SEK for each cryptocurrency
+void cryptoOverviewPage() 
+{
+  Serial.printf("Entering crypto overview function\n");
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.setTextSize(2);
+  tft.drawString("Crypto Overview", 10, 10);
+
+  Serial.println("Connecting to Coinbase...");
+
+  if (!wifi_client.connect(HOST, HTTPS_PORT)) {
+    Serial.println("Connection to api.coinbase.com failed!");
+    return;
+  }
+
+  Serial.println("Connected, sending request...");
+
+  wifi_client.print(String("GET ") + PRICES_ENDPOINT + "BTC" + " HTTP/1.1\r\n" +
+               "Host: " + HOST + "\r\n" +
+               "Connection: close\r\n\r\n");
+
+  while (wifi_client.connected() && !wifi_client.available()) {
+    delay(10);
+  }
+
+  Serial.println("Response:");
+
+  while (wifi_client.available()) {
+    String line = wifi_client.readStringUntil('\n');
+    Serial.println(line);
+  }
+
+  wifi_client.stop();
+  Serial.println("Connection closed.");
+
+    // tft.drawString(name + " (" + symbol + "): " + rate + " SEK", 10, 40 + i * 30);
+  
+}
+
+
 
 // TFT Pin check
 //////////////////
