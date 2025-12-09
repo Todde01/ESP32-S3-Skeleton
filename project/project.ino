@@ -27,6 +27,9 @@ const int HTTPS_PORT = 443;
 const char *PRICES_ENDPOINT = "/v2/exchange-rates?currency=USD";
 const char *CURRENCIES_ENDPOINT = "/v2/currencies/crypto?currency=";
 const char *SPOT_PRICE_ENDPOINT = "/v2/prices/BTC-USD/buy";
+float lastBTCprice;
+float lastETHprice;
+float lastUSDTprice;
 
 const uint8_t logo_bitmap[512] = {
     0x00,
@@ -543,9 +546,47 @@ const uint8_t logo_bitmap[512] = {
     0x00,
 };
 
+const uint8_t triangle_up[32] = {
+  0x00, 0xC0,  // 00000000 11000000
+  0x01, 0xE0,  // 00000001 11100000
+  0x03, 0xF0,  // 00000011 11110000
+  0x07, 0xF8,  // 00000111 11111000
+  0x0F, 0xFC,  // 00001111 11111100
+  0x1F, 0xFE,  // 00011111 11111110
+  0x3F, 0xFF,  // 00111111 11111111
+  0x7F, 0xFF,  // 01111111 11111111
+  0x00, 0x00,
+  0x00, 0x00,
+  0x00, 0x00,
+  0x00, 0x00,
+  0x00, 0x00,
+  0x00, 0x00,
+  0x00, 0x00,
+  0x00, 0x00
+};
+
+const uint8_t triangle_down[32] = {
+  0x00, 0x00,
+  0x00, 0x00,
+  0x00, 0x00,
+  0x00, 0x00,
+  0x00, 0x00,
+  0x00, 0x00,
+  0x00, 0x00,
+  0x00, 0x00,
+  0x7F, 0xFF,  // 01111111 11111111
+  0x3F, 0xFF,  // 00111111 11111111
+  0x1F, 0xFE,  // 00011111 11111110
+  0x0F, 0xFC,  // 00001111 11111100
+  0x07, 0xF8,  // 00000111 11111000
+  0x03, 0xF0,  // 00000011 11110000
+  0x01, 0xE0,  // 00000001 11100000
+  0x00, 0xC0   // 00000000 11000000
+};
+
 // Remember to remove these before commiting in GitHub
-String ssid = "iPhone";
-String password = "todde001";
+String ssid = "Nothing";
+String password = "nothing123";
 
 // "tft" is the graphics libary, which has functions to draw on the screen
 TFT_eSPI tft = TFT_eSPI();
@@ -606,7 +647,7 @@ void setup()
   {
     Serial.printf("Time set: %02d:%02d:%02d\n", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
   }
-
+  
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_GREEN, TFT_BLACK);
   tft.setTextSize(2);
@@ -616,38 +657,84 @@ void setup()
 }
 
 /**
- * This is the main loop function that runs continuously after setup.
- * Add your code here to perform tasks repeatedly.
- */
+* This is the main loop function that runs continuously after setup.
+* Add your code here to perform tasks repeatedly.
+*/
 void loop()
 {
-  Serial.printf("Mainpage\n");
   tft.setTextSize(2);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-
+  
+  unsigned long lastRefreshOverview = 0;
+  unsigned long lastRefreshBTC = 0;
+  
   switch (pageIndex)
   {
-  case 0:
+    case 0:
     infoScreen();
     btnListener();
     break;
-  case 1:
+    case 1:
     nameScreen();
     btnListener();
     break;
-  case 2:
-    Serial.println("Should call crypto overview page\n");
+    case 2:
+    Serial.println("Crypto overview page\n");
     tft.fillScreen(TFT_BLACK);
-
+    
     btnPressed = false;
-    unsigned long lastRefresh = 0;
     while (!btnPressed)
     {
       unsigned long now = millis();
-      if (lastRefresh == 0 || now - lastRefresh >= 3000)
+      if (lastRefreshOverview == 0 || now - lastRefreshOverview >= 3000)
       {
         cryptoOverviewPage();
-        lastRefresh = now;
+        lastRefreshOverview = now;
+      }
+      
+      if (digitalRead(PIN_BUTTON_1) == LOW || digitalRead(PIN_BUTTON_2) == LOW)
+      {
+        btnPressed = true;
+
+        if (digitalRead(PIN_BUTTON_1) == LOW)
+        {
+          pageIndex--;
+        }
+        if (digitalRead(PIN_BUTTON_2) == LOW)
+        {
+          pageIndex++;
+        }
+
+        if (pageIndex < 0)
+        {
+          pageIndex = 5;
+        }
+        else if (pageIndex > 5)
+        {
+          pageIndex = 0;
+        }
+        if (digitalRead(PIN_BUTTON_1) == LOW && digitalRead(PIN_BUTTON_2) == LOW)
+        {
+          delay(500); // debounce delay
+          pomodoroPage();
+        }
+      }
+
+      delay(50); // avoid busy loop while still polling quickly
+    }
+    break;
+  case 3:
+    Serial.println("Should call BTC page\n");
+    tft.fillScreen(TFT_BLACK);
+
+    btnPressed = false;
+    while (!btnPressed)
+    {
+      unsigned long now = millis();
+      if (lastRefreshBTC == 0 || now - lastRefreshBTC >= 3000)
+      {
+        cryptoPage("BTC");
+        lastRefreshBTC = now;
       }
 
       if (digitalRead(PIN_BUTTON_1) == LOW || digitalRead(PIN_BUTTON_2) == LOW)
@@ -665,9 +752,9 @@ void loop()
 
         if (pageIndex < 0)
         {
-          pageIndex = 2;
+          pageIndex = 5;
         }
-        else if (pageIndex > 2)
+        else if (pageIndex > 5)
         {
           pageIndex = 0;
         }
@@ -681,21 +768,29 @@ void loop()
       delay(50); // avoid busy loop while still polling quickly
     }
     break;
+  case 4:
+    cryptoPage("ETH");
+    break;
+  case 5:
+    cryptoPage("USDT");
+    break;
   }
 }
 
-void infoScreen() {
-    tft.fillScreen(TFT_BLACK);
-    tft.drawString("Group 6, v 1.0", 10, 10);
-    tft.drawBitmap(15, 40, logo_bitmap, 64, 64, TFT_ORANGE, TFT_BLACK);
+void infoScreen()
+{
+  tft.fillScreen(TFT_BLACK);
+  tft.drawString("Group 6, v 1.0", 10, 10);
+  tft.drawBitmap(15, 40, logo_bitmap, 64, 64, TFT_ORANGE, TFT_BLACK);
 }
 
-void nameScreen() {
-    tft.fillScreen(TFT_BLACK); 
-    tft.drawString("Theodor Qvarlander", 10, 10);
-    tft.drawString("Saga Lindqvist", 10, 30);
-    tft.drawString("Josefine Johnsson", 10, 50);
-    tft.drawString("Olof Carlander", 10, 70);
+void nameScreen()
+{
+  tft.fillScreen(TFT_BLACK);
+  tft.drawString("Theodor Qvarlander", 10, 10);
+  tft.drawString("Saga Lindqvist", 10, 30);
+  tft.drawString("Josefine Johnsson", 10, 50);
+  tft.drawString("Olof Carlander", 10, 70);
 }
 
 void btnListener()
@@ -719,9 +814,9 @@ void btnListener()
 
       if (pageIndex < 0)
       {
-        pageIndex = 2;
+        pageIndex = 5;
       }
-      else if (pageIndex > 2)
+      else if (pageIndex > 5)
       {
         pageIndex = 0;
       }
@@ -845,17 +940,16 @@ void pomodoroPage()
 void cryptoOverviewPage()
 {
   Serial.printf("Entering crypto overview function\n");
-  
+
   String response = fetchRates();
-  Serial.println("API Response: " + response);
-  
+
   if (response == "")
   {
     Serial.println("Failed to fetch rates.");
     tft.drawString("Failed to fetch rates.", 10, 40);
     return;
   }
-  
+
   auto json = nlohmann::json::parse(response.c_str());
   Serial.println("JSON parsed successfully.");
 
@@ -863,19 +957,121 @@ void cryptoOverviewPage()
   tft.setTextSize(2);
   tft.drawString("Crypto Overview", 10, 10);
   tft.fillScreen(TFT_BLACK);
-  
+
   for (int i = 0; i < 3; i++)
   {
     String symbol = cryptoIDs[i];
     Serial.println("Processing " + symbol);
-    
+
     String rate = String(json["data"]["rates"][symbol.c_str()].get<std::string>().c_str());
     float rateFloat = (1 / rate.toFloat()) * USD_TO_SEK;
     rate = String(rateFloat, 2);
-    
+
     Serial.println("Extracted rate for " + symbol + ":  " + rate);
-    
+
     tft.drawString(symbol + " " + rate + " SEK", 10, 40 + i * 30);
+  }
+}
+
+void cryptoPage(String symbol)
+{
+
+  String name = getName(symbol);
+  if (name == "Unknown")
+  {
+    Serial.println("Unknown symbol: " + symbol);
+    tft.drawString("Unknown symbol: " + symbol, 10, 10);
+    return;
+  }
+
+  Serial.println("Entering crypto page function for " + symbol + "\n");
+
+  String response = fetchRates();
+
+  if (response == "")
+  {
+    Serial.println("Failed to fetch rates.");
+    tft.drawString("Failed to fetch rates.", 10, 40);
+    return;
+  }
+
+  auto json = nlohmann::json::parse(response.c_str());
+  Serial.println("JSON parsed successfully.");
+
+  // tft.fillScreen(TFT_BLACK);
+  
+  String UsdRate = String(json["data"]["rates"][symbol.c_str()].get<std::string>().c_str());
+  float UsdRateFloat = 1 / UsdRate.toFloat();
+  UsdRate = String(UsdRateFloat, 2);
+  
+  float SekRateFloat = (1 / UsdRate.toFloat()) * USD_TO_SEK;
+  String SekRate = String(SekRateFloat, 2);
+  
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.setTextSize(2);
+  tft.drawString(getName(symbol).c_str(), 10, 10);
+  tft.drawString(symbol.c_str(), 10, 30);
+  tft.drawString("USD: " + UsdRate, 10, 50);
+  tft.drawString("SEK: " + SekRate, 10, 70);
+  
+  if (getLastPrice(symbol) < UsdRateFloat)
+  {
+    tft.drawBitmap(15, 100, triangle_up, 16, 16, TFT_GREEN, TFT_BLACK);
+  } else if (getLastPrice(symbol) > UsdRateFloat) {
+    tft.drawBitmap(15, 100, triangle_down, 16, 16, TFT_RED, TFT_BLACK);
+  }
+
+  setLastPrice(symbol, UsdRateFloat);
+}
+
+String getName(String symbol)
+{
+  switch (symbol.c_str()[0])
+  {
+  case 'B':
+    return "Bitcoin";
+  case 'E':
+    return "Ethereum";
+  case 'U':
+    return "Tether";
+  default:
+    return "Unknown";
+  }
+}
+
+float getLastPrice(String symbol) //USD rate used for comparison
+{
+  if (symbol == "BTC")
+  {
+    return lastBTCprice;
+  }
+  else if (symbol == "ETH")
+  {
+    return lastETHprice;
+  }
+  else if (symbol == "USDT")
+  {
+    return lastUSDTprice;
+  }
+  else
+  {
+    return -1.0; // unknown symbol
+  }
+}
+
+void setLastPrice(String symbol, float price) //USD rate used for comparison
+{
+  if (symbol == "BTC")
+  {
+    lastBTCprice = price;
+  }
+  else if (symbol == "ETH")
+  {
+    lastETHprice = price;
+  }
+  else if (symbol == "USDT")
+  {
+    lastUSDTprice = price;
   }
 }
 
@@ -901,15 +1097,12 @@ String fetchRates()
     delay(10);
   }
 
-  Serial.println("Response:");
-
   String json;
   while (wifi_client.available())
   {
     String line = wifi_client.readStringUntil('\n');
-    Serial.println(line);
     if (line[0] == '{')
-    { // crude way to find the start of the JSON payload
+    { //wonky way to find the start of the JSON payload
       json = line;
     }
   }
