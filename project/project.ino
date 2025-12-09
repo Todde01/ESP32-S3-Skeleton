@@ -28,8 +28,6 @@ const char *PRICES_ENDPOINT = "/v2/exchange-rates?currency=USD";
 const char *CURRENCIES_ENDPOINT = "/v2/currencies/crypto?currency=";
 const char *SPOT_PRICE_ENDPOINT = "/v2/prices/BTC-USD/buy";
 float lastBTCprice;
-float lastETHprice;
-float lastUSDTprice;
 
 const uint8_t logo_bitmap[512] = {
     0x00,
@@ -707,9 +705,9 @@ void loop()
 
         if (pageIndex < 0)
         {
-          pageIndex = 5;
+          pageIndex = 3;
         }
-        else if (pageIndex > 5)
+        else if (pageIndex > 3)
         {
           pageIndex = 0;
         }
@@ -752,9 +750,9 @@ void loop()
 
         if (pageIndex < 0)
         {
-          pageIndex = 5;
+          pageIndex = 3;
         }
-        else if (pageIndex > 5)
+        else if (pageIndex > 3)
         {
           pageIndex = 0;
         }
@@ -767,12 +765,6 @@ void loop()
 
       delay(50); // avoid busy loop while still polling quickly
     }
-    break;
-  case 4:
-    cryptoPage("ETH");
-    break;
-  case 5:
-    cryptoPage("USDT");
     break;
   }
 }
@@ -1045,14 +1037,6 @@ float getLastPrice(String symbol) //USD rate used for comparison
   {
     return lastBTCprice;
   }
-  else if (symbol == "ETH")
-  {
-    return lastETHprice;
-  }
-  else if (symbol == "USDT")
-  {
-    return lastUSDTprice;
-  }
   else
   {
     return -1.0; // unknown symbol
@@ -1064,14 +1048,6 @@ void setLastPrice(String symbol, float price) //USD rate used for comparison
   if (symbol == "BTC")
   {
     lastBTCprice = price;
-  }
-  else if (symbol == "ETH")
-  {
-    lastETHprice = price;
-  }
-  else if (symbol == "USDT")
-  {
-    lastUSDTprice = price;
   }
 }
 
